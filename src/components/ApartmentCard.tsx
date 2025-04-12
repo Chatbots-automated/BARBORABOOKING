@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Calendar, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronRight } from 'lucide-react';
 import { Apartment } from '../types';
 
 interface ApartmentCardProps {
@@ -9,30 +9,21 @@ interface ApartmentCardProps {
 
 export function ApartmentCard({ apartment, onSelect }: ApartmentCardProps) {
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
       <img 
-        src={apartment.imageUrl} 
+        src={apartment.image_url || 'https://via.placeholder.com/600x400?text=No+Image'} 
         alt={apartment.name}
         className="w-full h-48 object-cover"
       />
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold">{apartment.name}</h3>
+          <h3 className="text-xl font-semibold text-gray-900">{apartment.name}</h3>
           <span className="text-lg font-bold text-green-600">
-            ${apartment.pricePerNight}/night
+            €{apartment.price_per_night}/night
           </span>
         </div>
-        <p className="text-gray-600 mb-4">{apartment.description}</p>
-        <div className="flex flex-wrap gap-2 mb-4">
-          {apartment.features.map((feature) => (
-            <span 
-              key={feature}
-              className="px-3 py-1 bg-gray-100 rounded-full text-sm text-gray-600"
-            >
-              {feature}
-            </span>
-          ))}
-        </div>
+        <p className="text-gray-600 mb-4 line-clamp-2">{apartment.description || 'No description available'}</p>
+
         <button
           onClick={() => onSelect(apartment)}
           className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"

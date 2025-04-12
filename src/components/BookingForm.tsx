@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
-import { format, differenceInDays, eachDayOfInterval, parseISO, isSameDay, addDays } from 'date-fns';
-import { Calendar } from 'lucide-react';
-import { Apartment, BookingDetails } from '../types';
+import { format, differenceInDays, eachDayOfInterval, parseISO, isSameDay } from 'date-fns';
+import { Calendar, Tag, X } from 'lucide-react';
+import { Apartment, BookingDetails, Coupon } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface BookingFormProps {
@@ -18,14 +18,29 @@ export function BookingForm({ apartment, onClose }: BookingFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bookedDates, setBookedDates] = useState<Date[]>([]);
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+
+  // Function to extract the base apartment name
+  const getApartmentBaseName = (fullName: string): string => {
+    const nameMap: { [key: string]: string } = {
+      'Senovinis medinis namas "Gintaras"': 'gintaras',
+      'Dvivietis apartamentas "Pikulas"': 'pikulas',
+      'Šeimyninis apartamentas "Māra"': 'mara',
+      'Namelis dviems "Medeinė"': 'medeine'
+    };
+    return nameMap[fullName] || fullName.toLowerCase();
+  };
 
   useEffect(() => {
     async function fetchBookedDates() {
       try {
+        const baseName = getApartmentBaseName(apartment.name);
         const { data, error } = await supabase
           .from('bookings')
           .select('check_in, check_out')
-          .eq('apartment_name', apartment.id.toLowerCase());
+          .eq('apartment_name', baseName);
 
         if (error) throw error;
 
@@ -50,7 +65,48 @@ export function BookingForm({ apartment, onClose }: BookingFormProps) {
     }
 
     fetchBookedDates();
-  }, [apartment.id]);
+  }, [apartment.name]);
+
+  const validateCoupon = async (code: string) => {
+    setIsValidatingCoupon(true);
+    setError(null);
+
+    try {
+      const { data, error } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('code', code)
+        .eq('is_active', true)
+        .gt('expires_at', new Date().toISOString())
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setAppliedCoupon(data as Coupon);
+        return true;
+      }
+
+      setError('Invalid or expired coupon code');
+      setAppliedCoupon(null);
+      return false;
+    } catch (err) {
+      console.error('Error validating coupon:', err);
+      setError('Failed to validate coupon');
+      setAppliedCoupon(null);
+      return false;
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setError('Please enter a coupon code');
+      return;
+    }
+    await validateCoupon(couponCode.trim());
+  };
 
   const isDateBooked = (date: Date) => {
     return bookedDates.some(bookedDate => isSameDay(bookedDate, date));
@@ -94,6 +150,17 @@ export function BookingForm({ apartment, onClose }: BookingFormProps) {
     setError(null);
   };
 
+  const calculateTotalPrice = (numberOfNights: number) => {
+    let totalPrice = numberOfNights * apartment.price_per_night;
+
+    if (appliedCoupon) {
+      const discount = totalPrice * (appliedCoupon.discount_percent / 100);
+      totalPrice -= discount;
+    }
+
+    return totalPrice;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -117,7 +184,7 @@ export function BookingForm({ apartment, onClose }: BookingFormProps) {
       }
 
       const numberOfNights = differenceInDays(checkOut, checkIn);
-      const totalPrice = numberOfNights * apartment.pricePerNight;
+      const totalPrice = calculateTotalPrice(numberOfNights);
       const priceInCents = Math.round(totalPrice * 100);
 
       const params = new URLSearchParams({
@@ -130,13 +197,18 @@ export function BookingForm({ apartment, onClose }: BookingFormProps) {
         'line_items[0][price_data][unit_amount]': priceInCents.toString(),
         'line_items[0][quantity]': '1',
         'metadata[apartmentId]': apartment.id,
-        'metadata[apartmentName]': apartment.name,
+        'metadata[apartmentName]': getApartmentBaseName(apartment.name),
         'metadata[checkIn]': checkIn.toISOString(),
         'metadata[checkOut]': checkOut.toISOString(),
         'metadata[email]': guestEmail,
         'metadata[guestName]': guestName,
         'metadata[price]': totalPrice.toString(),
       });
+
+      if (appliedCoupon) {
+        params.append('metadata[couponCode]', appliedCoupon.code);
+        params.append('metadata[discountPercent]', appliedCoupon.discount_percent.toString());
+      }
 
       const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
         method: 'POST',
@@ -163,9 +235,22 @@ export function BookingForm({ apartment, onClose }: BookingFormProps) {
     }
   };
 
+  const numberOfNights = bookingDetails.checkIn && bookingDetails.checkOut
+    ? differenceInDays(bookingDetails.checkOut, bookingDetails.checkIn)
+    : 0;
+
+  const totalPrice = calculateTotalPrice(numberOfNights);
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl p-8 max-w-md w-full shadow-2xl">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-xl p-8 max-w-md w-full shadow-2xl relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+        >
+          <X className="w-6 h-6" />
+        </button>
+
         <div className="flex items-center gap-3 mb-6">
           <Calendar className="w-6 h-6 text-blue-600" />
           <h2 className="text-2xl font-bold text-gray-900">Book {apartment.name}</h2>
@@ -180,84 +265,113 @@ export function BookingForm({ apartment, onClose }: BookingFormProps) {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Check-in</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Check-in Date
+              </label>
               <DatePicker
                 selected={bookingDetails.checkIn}
                 onChange={(date) => handleDateChange('checkIn', date)}
                 minDate={new Date()}
                 excludeDates={bookedDates}
-                dateFormat="yyyy-MM-dd"
+                dateFormat="MMM d, yyyy"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholderText="Select date"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Check-out</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Check-out Date
+              </label>
               <DatePicker
                 selected={bookingDetails.checkOut}
                 onChange={(date) => handleDateChange('checkOut', date)}
-                minDate={bookingDetails.checkIn ? addDays(bookingDetails.checkIn, 1) : new Date()}
+                minDate={bookingDetails.checkIn || new Date()}
                 excludeDates={bookedDates}
-                dateFormat="yyyy-MM-dd"
+                dateFormat="MMM d, yyyy"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholderText="Select date"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Full Name
+            </label>
             <input
               type="text"
-              required
+              value={bookingDetails.guestName || ''}
+              onChange={(e) => setBookingDetails({ ...bookingDetails, guestName: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Enter your full name"
-              onChange={(e) =>
-                setBookingDetails({ ...bookingDetails, guestName: e.target.value })
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email
+            </label>
             <input
               type="email"
-              required
+              value={bookingDetails.guestEmail || ''}
+              onChange={(e) => setBookingDetails({ ...bookingDetails, guestEmail: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Enter your email"
-              onChange={(e) =>
-                setBookingDetails({ ...bookingDetails, guestEmail: e.target.value })
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value)}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter coupon code"
+            />
             <button
               type="button"
-              onClick={onClose}
-              disabled={isLoading}
-              className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:opacity-50 transition-colors"
+              onClick={handleApplyCoupon}
+              disabled={isValidatingCoupon}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 disabled:opacity-50"
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="px-6 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition-colors flex items-center gap-2"
-            >
-              {isLoading ? (
-                <>
-                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Processing...
-                </>
-              ) : (
-                'Proceed to Payment'
-              )}
+              <Tag className="w-5 h-5" />
             </button>
           </div>
+
+          {appliedCoupon && (
+            <div className="p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
+              Coupon applied: {appliedCoupon.discount_percent}% discount
+            </div>
+          )}
+
+          <div className="border-t border-gray-200 pt-4">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-gray-600">Price per night</span>
+              <span className="font-medium">€{apartment.price_per_night}</span>
+            </div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-gray-600">Number of nights</span>
+              <span className="font-medium">{numberOfNights}</span>
+            </div>
+            {appliedCoupon && (
+              <div className="flex justify-between items-center mb-2 text-green-600">
+                <span>Discount ({appliedCoupon.discount_percent}%)</span>
+                <span>-€{(numberOfNights * apartment.price_per_night * (appliedCoupon.discount_percent / 100)).toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center text-lg font-bold">
+              <span>Total</span>
+              <span>€{totalPrice.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+          >
+            {isLoading ? 'Processing...' : 'Book Now'}
+          </button>
         </form>
       </div>
     </div>
