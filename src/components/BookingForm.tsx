@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { format, differenceInDays, eachDayOfInterval } from 'date-fns';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
+import { format, differenceInDays, eachDayOfInterval, parseISO, isSameDay, addDays } from 'date-fns';
+import { Calendar } from 'lucide-react';
 import { Apartment, BookingDetails } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -14,7 +17,7 @@ export function BookingForm({ apartment, onClose }: BookingFormProps) {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [bookedDays, setBookedDays] = useState<Date[]>([]);
+  const [bookedDates, setBookedDates] = useState<Date[]>([]);
 
   useEffect(() => {
     async function fetchBookedDates() {
@@ -22,22 +25,27 @@ export function BookingForm({ apartment, onClose }: BookingFormProps) {
         const { data, error } = await supabase
           .from('bookings')
           .select('check_in, check_out')
-          .eq('apartment_name', apartment.name);
-
+          .eq('apartment_name', apartment.id.toLowerCase());
 
         if (error) throw error;
 
-        // Generate all booked days
-        const allBookedDays = data.flatMap(booking => 
-          eachDayOfInterval({
-            start: new Date(booking.check_in),
-            end: new Date(booking.check_out)
-          })
-        );
+        const allDates: Date[] = [];
 
-        setBookedDays(allBookedDays);
+        data.forEach(booking => {
+          const start = parseISO(booking.check_in);
+          const end = parseISO(booking.check_out);
+          const daysInRange = eachDayOfInterval({ start, end });
+          allDates.push(...daysInRange);
+        });
+
+        const uniqueDates = Array.from(
+          new Set(allDates.map(date => format(date, 'yyyy-MM-dd')))
+        ).map(dateStr => parseISO(dateStr));
+
+        setBookedDates(uniqueDates);
       } catch (err) {
         console.error('Error fetching booked dates:', err);
+        setError('Failed to fetch available dates');
       }
     }
 
@@ -45,21 +53,20 @@ export function BookingForm({ apartment, onClose }: BookingFormProps) {
   }, [apartment.id]);
 
   const isDateBooked = (date: Date) => {
-    return bookedDays.some(bookedDate => 
-      format(bookedDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
-    );
+    return bookedDates.some(bookedDate => isSameDay(bookedDate, date));
   };
 
-  const handleDateChange = (type: 'checkIn' | 'checkOut', date: Date) => {
+  const handleDateChange = (type: 'checkIn' | 'checkOut', date: Date | null) => {
+    if (!date) return;
+
     const newBookingDetails = { ...bookingDetails };
-    
+
     if (type === 'checkIn') {
       if (isDateBooked(date)) {
         setError('This date is already booked');
         return;
       }
       newBookingDetails.checkIn = date;
-      // Reset checkout if it's before checkin
       if (bookingDetails.checkOut && date >= bookingDetails.checkOut) {
         newBookingDetails.checkOut = undefined;
       }
@@ -71,11 +78,10 @@ export function BookingForm({ apartment, onClose }: BookingFormProps) {
       newBookingDetails.checkOut = date;
     }
 
-    // Check if any day in the range is booked
     if (newBookingDetails.checkIn && newBookingDetails.checkOut) {
       const daysToCheck = eachDayOfInterval({
         start: newBookingDetails.checkIn,
-        end: newBookingDetails.checkOut
+        end: newBookingDetails.checkOut,
       });
 
       if (daysToCheck.some(date => isDateBooked(date))) {
@@ -94,34 +100,23 @@ export function BookingForm({ apartment, onClose }: BookingFormProps) {
     setError(null);
 
     try {
-      if (
-        !bookingDetails.checkIn ||
-        !bookingDetails.checkOut ||
-        !bookingDetails.guestEmail ||
-        !bookingDetails.guestName
-      ) {
+      const { checkIn, checkOut, guestEmail, guestName } = bookingDetails;
+
+      if (!checkIn || !checkOut || !guestEmail || !guestName) {
         throw new Error('Please fill in all required fields');
       }
 
-      if (new Date(bookingDetails.checkOut) <= new Date(bookingDetails.checkIn)) {
+      if (checkOut <= checkIn) {
         throw new Error('Check-out date must be after check-in date');
       }
 
-      // Final check for booked days
-      const daysToCheck = eachDayOfInterval({
-        start: bookingDetails.checkIn,
-        end: bookingDetails.checkOut
-      });
+      const daysToCheck = eachDayOfInterval({ start: checkIn, end: checkOut });
 
       if (daysToCheck.some(date => isDateBooked(date))) {
         throw new Error('Some days in this range are already booked');
       }
 
-      const numberOfNights = differenceInDays(
-        new Date(bookingDetails.checkOut),
-        new Date(bookingDetails.checkIn)
-      );
-
+      const numberOfNights = differenceInDays(checkOut, checkIn);
       const totalPrice = numberOfNights * apartment.pricePerNight;
       const priceInCents = Math.round(totalPrice * 100);
 
@@ -129,17 +124,17 @@ export function BookingForm({ apartment, onClose }: BookingFormProps) {
         mode: 'payment',
         success_url: `${window.location.origin}/success`,
         cancel_url: `${window.location.origin}/cancel`,
-        customer_email: bookingDetails.guestEmail || '',
+        customer_email: guestEmail,
         'line_items[0][price_data][currency]': 'eur',
         'line_items[0][price_data][product_data][name]': apartment.name,
         'line_items[0][price_data][unit_amount]': priceInCents.toString(),
         'line_items[0][quantity]': '1',
         'metadata[apartmentId]': apartment.id,
         'metadata[apartmentName]': apartment.name,
-        'metadata[checkIn]': bookingDetails.checkIn.toISOString(),
-        'metadata[checkOut]': bookingDetails.checkOut.toISOString(),
-        'metadata[email]': bookingDetails.guestEmail || '',
-        'metadata[guestName]': bookingDetails.guestName || '',
+        'metadata[checkIn]': checkIn.toISOString(),
+        'metadata[checkOut]': checkOut.toISOString(),
+        'metadata[email]': guestEmail,
+        'metadata[guestName]': guestName,
         'metadata[price]': totalPrice.toString(),
       });
 
@@ -170,77 +165,89 @@ export function BookingForm({ apartment, onClose }: BookingFormProps) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full">
-        <h2 className="text-2xl font-bold mb-4">Book {apartment.name}</h2>
+      <div className="bg-white rounded-xl p-8 max-w-md w-full shadow-2xl">
+        <div className="flex items-center gap-3 mb-6">
+          <Calendar className="w-6 h-6 text-blue-600" />
+          <h2 className="text-2xl font-bold text-gray-900">Book {apartment.name}</h2>
+        </div>
+
         {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
             {error}
           </div>
         )}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Check-in Date</label>
-            <input
-              type="date"
-              required
-              min={format(new Date(), 'yyyy-MM-dd')}
-              value={bookingDetails.checkIn ? format(bookingDetails.checkIn, 'yyyy-MM-dd') : ''}
-              onChange={(e) => handleDateChange('checkIn', new Date(e.target.value))}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            />
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Check-in</label>
+              <DatePicker
+                selected={bookingDetails.checkIn}
+                onChange={(date) => handleDateChange('checkIn', date)}
+                minDate={new Date()}
+                excludeDates={bookedDates}
+                dateFormat="yyyy-MM-dd"
+                placeholderText="Select date"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Check-out</label>
+              <DatePicker
+                selected={bookingDetails.checkOut}
+                onChange={(date) => handleDateChange('checkOut', date)}
+                minDate={bookingDetails.checkIn ? addDays(bookingDetails.checkIn, 1) : new Date()}
+                excludeDates={bookedDates}
+                dateFormat="yyyy-MM-dd"
+                placeholderText="Select date"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700">Check-out Date</label>
-            <input
-              type="date"
-              required
-              min={bookingDetails.checkIn ? format(bookingDetails.checkIn, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')}
-              value={bookingDetails.checkOut ? format(bookingDetails.checkOut, 'yyyy-MM-dd') : ''}
-              onChange={(e) => handleDateChange('checkOut', new Date(e.target.value))}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Full Name</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
             <input
               type="text"
               required
-              onChange={(e) => setBookingDetails({
-                ...bookingDetails,
-                guestName: e.target.value
-              })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="Enter your full name"
+              onChange={(e) =>
+                setBookingDetails({ ...bookingDetails, guestName: e.target.value })
+              }
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
             <input
               type="email"
               required
-              onChange={(e) => setBookingDetails({
-                ...bookingDetails,
-                guestEmail: e.target.value
-              })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="Enter your email"
+              onChange={(e) =>
+                setBookingDetails({ ...bookingDetails, guestEmail: e.target.value })
+              }
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
-          <div className="flex justify-end space-x-3">
+
+          <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"
               onClick={onClose}
               disabled={isLoading}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50"
+              className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:opacity-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center"
+              className="px-6 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition-colors flex items-center gap-2"
             >
               {isLoading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
