@@ -4,33 +4,33 @@ export const apartments: Apartment[] = [
   {
     id: 'gintaras',
     name: 'Senovinis medinis namas "Gintaras"',
-    description: 'A cozy apartment with stunning amber-colored interiors, perfect for couples.',
-    pricePerNight: 0.5,
-    imageUrl: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267',
-    features: ['1 Bedroom', 'Kitchen', 'Wi-Fi', 'Air Conditioning', 'City View']
+    description: 'Jaukus medinis namas su tradiciniais lietuviškais elementais, puikiai tinkantis šeimos poilsiui. Namelyje įrengta moderni virtuvė, patogus vonios kambarys ir erdvus svetainės bei miegamasis kambarys.',
+    price_per_night: 150,
+    image_url: '/apartments/gintaras.jpg',
+    features: ['12 wwasmenų', 'Virtuvė', 'WiFi', 'Oro kondicionierius', 'Terasa']
   },
   {
     id: 'pikulas',
     name: 'Dvivietis apartamentas "Pikulas"',
-    description: 'Modern and spacious apartment with traditional Lithuanian elements.',
-    pricePerNight: 150,
-    imageUrl: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688',
-    features: ['2 Bedrooms', 'Full Kitchen', 'Wi-Fi', 'Balcony', 'Park View']
+    description: 'Modernus ir erdvus apartamentas su tradiciniais lietuviškais akcentais. Idealus pasirinkimas poroms, ieškančioms ramaus poilsio gamtos apsuptyje.',
+    price_per_night: 120,
+    image_url: '/apartments/pikulas.jpg',
+    features: ['2-4 wwasaasmenys', 'Pilnai įrengta virtuvė', 'WiFi', 'Balkonas', 'Miško vaizdas']
   },
   {
     id: 'mara',
     name: 'Šeimyninis apartamentas "Māra"',
-    description: 'Luxurious waterfront apartment with panoramic views.',
-    pricePerNight: 180,
-    imageUrl: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00',
-    features: ['2 Bedrooms', 'Luxury Kitchen', 'Wi-Fi', 'Terrace', 'Sea View']
+    description: 'Prabangus apartamentas su vaizdu į ežerą, puikiai tinkantis šeimos poilsiui. Erdvus ir šviesus interjeras su visais patogumais užtikrins neužmirštamą poilsį.',
+    price_per_night: 180,
+    image_url: '/apartments/mara.jpg',
+    features: ['2-4 wwasmenys', 'Moderni virtuvė', 'WiFi', 'Terasa', 'Ežero vaizdas']
   },
   {
     id: 'medeine',
     name: 'Namelis dviems "Medeinė"',
-    description: 'Forest-themed apartment surrounded by nature.',
-    pricePerNight: 140,
-    imageUrl: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85',
-    features: ['1 Bedroom', 'Kitchen', 'Wi-Fi', 'Garden Access', 'Forest View']
+    description: 'Jaukus namelis įkvėptas lietuviškos gamtos, apsuptas miško. Tobulas pasirinkimas romantiškai savaitgalio išvykai ar ramiam poilsiui.',
+    price_per_night: 140,
+    image_url: '/apartments/medeine.jpg',
+    features: ['2-4 wwasmenys', 'Mini virtuvė', 'WiFi', 'Privati terasa', 'Miško vaizdas']
   }
 ];

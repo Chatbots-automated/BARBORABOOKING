@@ -1,6 +1,8 @@
 import React from 'react';
-import { Calendar } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users } from 'lucide-react';
 import { Apartment } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface ApartmentCardProps {
   apartment: Apartment;
@@ -8,40 +10,53 @@ interface ApartmentCardProps {
 }
 
 export function ApartmentCard({ apartment, onSelect }: ApartmentCardProps) {
+  const navigate = useNavigate();
+  const { t } = useLanguage();
+
+  const handleBooking = (e: React.MouseEvent) => {
+    e.preventDefault();
+    navigate(`/${apartment.id}`, { state: { showBookingForm: true } });
+  };
+
+  const getCapacityText = (apartmentId: string) => {
+    if (apartmentId === 'gintaras') {
+      return '12 ' + t('guests');
+    }
+    return '';
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-      <img 
-        src={apartment.image_url || 'https://via.placeholder.com/600x400?text=No+Image'} 
-        alt={apartment.name}
-        className="w-full h-64 object-cover"
-      />
+    <div className="bg-white rounded-lg overflow-hidden shadow-md group transform transition-transform duration-300 hover:scale-[1.02]">
+      <div className="relative">
+        <img 
+          src={apartment.image_url || '/placeholder.jpg'} 
+          alt={apartment.name}
+          className="w-full h-64 object-cover"
+        />
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+      
       <div className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h3 className="text-xl font-semibold text-[#2D2D2D] mb-2">{apartment.name}</h3>
-            <p className="text-gray-600 text-sm">2 asmenims</p>
-          </div>
-          <div className="text-right">
-            <div className="bg-[#8B8455] text-white px-3 py-1 rounded-full text-sm">
-              nuo €{apartment.price_per_night}
-              <span className="text-xs ml-1">už naktį</span>
-            </div>
-          </div>
+        <h3 className="text-xl font-medium text-gray-900 mb-2">{apartment.name}</h3>
+        <div className="flex items-center gap-2 text-gray-600 mb-4">
+          <Users className="w-4 h-4" />
+          <span className="text-sm">{getCapacityText(apartment.id)}</span>
         </div>
         
-        <div className="space-y-3 mb-6">
-          <p className="text-gray-600 line-clamp-2">{apartment.description || 'No description available'}</p>
-          <div className="text-sm text-gray-600">Pilnai įrengtas</div>
-          <div className="text-sm text-gray-600">Ramiam poilsiui</div>
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-gray-600 text-sm">{t('from')} </span>
+            <span className="text-xl font-medium">€{apartment.price_per_night}</span>
+            <span className="text-gray-600 text-sm ml-1">/ {t('per.night')}</span>
+          </div>
+          
+          <button
+            onClick={handleBooking}
+            className="px-6 py-2 bg-[#807730] text-white rounded-lg hover:bg-[#6a632a] transition-colors transform hover:scale-105 duration-200 flex items-center gap-2"
+          >
+            {t('book.now')}
+          </button>
         </div>
-
-        <button
-          onClick={() => onSelect(apartment)}
-          className="w-full bg-[#8B8455] text-white py-3 rounded hover:bg-[#726D46] transition-colors flex items-center justify-center gap-2 font-medium"
-        >
-          <Calendar size={20} />
-          REZERVUOTI
-        </button>
       </div>
     </div>
   );
