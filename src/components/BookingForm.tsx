@@ -341,8 +341,7 @@ export function BookingForm({ apartment, onClose }: BookingFormProps) {
 
             <h3 className="text-lg font-bold mb-4">AUGINTINIAI</h3>
             <p className="mb-6">
-              Priimame ir Jūsų augintinius. PRIIMAME TIK ŠUNIS. Sumokėjus papildomą 10 eur mokestį galima atvykti su naminiais gyvūnais. Gyvūno paliktas išmatas privalo surinkti jo šeimininkai. Už bet kokią augintinių padarytą žalą atsako jų šeimininkai. Priimami tik sveiki, neagresyvūs, stabilios psichikos gyvūnai. Svečias, atvykęs su augintiniu, yra atsakingas už Girios Horizonte gyvenantį gyvūną ir įsipareigoja laikytis šių taisyklių bei visiškai atlyginti gyvūno padarytą žalą Girios Horizonto, teritorijai ir/ar tretiesi
-ems asmenims. Laikant gyvūną namelyje nesuderinus iš anksto - taikoma 100 Eur/d. bauda.
+              Priimame ir Jūsų augintinius. PRIIMAME TIK ŠUNIS. Sumokėjus papildomą 10 eur mokestį galima atvykti su naminiais gyvūnais. Gyvūno paliktas išmatas privalo surinkti jo šeimininkai. Už bet kokią augintinių padarytą žalą atsako jų šeimininkai. Priimami tik sveiki, neagresyvūs, stabilios psichikos gyvūnai. Svečias, atvykęs su augintiniu, yra atsakingas už Girios Horizonte gyvenantį gyvūną ir įsipareigoja laikytis šių taisyklių bei visiškai atlyginti gyvūno padarytą žalą Girios Horizonto, teritorijai ir/ar tretiesiems asmenims. Laikant gyvūną namelyje nesuderinus iš anksto - taikoma 100 Eur/d. bauda.
             </p>
 
             <h3 className="text-lg font-bold mb-4">POILSIAUTOJAMS DRAUDŽIAMA</h3>

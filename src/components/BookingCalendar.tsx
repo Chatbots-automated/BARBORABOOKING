@@ -12,8 +12,9 @@ import {
   isPast
 } from 'date-fns';
 import { lt } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Info, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Info, X, Tag, Loader2, Check } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { supabase } from '../lib/supabase';
 
 interface BookingCalendarProps {
   bookedDates: Date[];
@@ -21,6 +22,7 @@ interface BookingCalendarProps {
   checkOut: Date | null;
   onDateSelect: (date: Date) => void;
   onRulesAcceptanceChange?: (accepted: boolean) => void;
+  onCouponApply?: (coupon: { code: string; discount_percent: number } | null) => void;
 }
 
 export function BookingCalendar({
@@ -28,12 +30,17 @@ export function BookingCalendar({
   checkIn,
   checkOut,
   onDateSelect,
-  onRulesAcceptanceChange
+  onRulesAcceptanceChange,
+  onCouponApply
 }: BookingCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [rulesAccepted, setRulesAccepted] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [showError, setShowError] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount_percent: number } | null>(null);
   const today = new Date();
   const { language, t } = useLanguage();
 
@@ -82,6 +89,51 @@ export function BookingCalendar({
       return;
     }
     onDateSelect(date);
+  };
+
+  const validateCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError(t('please.enter.coupon'));
+      return;
+    }
+
+    setIsValidatingCoupon(true);
+    setCouponError(null);
+
+    try {
+      const { data, error } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('code', couponCode.trim())
+        .eq('is_active', true)
+        .gt('expires_at', new Date().toISOString())
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setAppliedCoupon(data);
+        if (onCouponApply) {
+          onCouponApply(data);
+        }
+        setCouponError(null);
+      } else {
+        setCouponError(t('coupon.invalid'));
+        setAppliedCoupon(null);
+        if (onCouponApply) {
+          onCouponApply(null);
+        }
+      }
+    } catch (err) {
+      console.error('Error validating coupon:', err);
+      setCouponError(t('coupon.invalid'));
+      setAppliedCoupon(null);
+      if (onCouponApply) {
+        onCouponApply(null);
+      }
+    } finally {
+      setIsValidatingCoupon(false);
+    }
   };
 
   if (showRules) {
@@ -244,6 +296,41 @@ export function BookingCalendar({
           </div>
         </div>
 
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={couponCode}
+            onChange={(e) => {
+              setCouponCode(e.target.value);
+              setCouponError(null);
+            }}
+            placeholder={t('enter.coupon')}
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+          />
+          <button
+            onClick={validateCoupon}
+            disabled={isValidatingCoupon}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 disabled:opacity-50 transition-colors"
+          >
+            {isValidatingCoupon ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Tag className="w-5 h-5" />
+            )}
+          </button>
+        </div>
+
+        {couponError && (
+          <p className="text-red-500 text-sm">{couponError}</p>
+        )}
+
+        {appliedCoupon && (
+          <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm flex items-center gap-2">
+            <Check className="w-4 h-4" />
+            <span>{t('coupon.applied')} ({appliedCoupon.discount_percent}%)</span>
+          </div>
+        )}
+
         <div className="flex items-start gap-3 pt-4 border-t border-gray-200">
           <input
             type="checkbox"
@@ -270,7 +357,7 @@ export function BookingCalendar({
             </button>
             {showError && (
               <p className="text-red-500 text-sm mt-1">
-                Prašome susipažinti ir sutikti su taisyklėmis prieš tęsiant
+                {t('please.accept.rules')}
               </p>
             )}
           </div>

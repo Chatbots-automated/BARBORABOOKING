@@ -133,7 +133,13 @@ const translations = {
       'When leaving the sauna, turn off all lighting.',
       'When leaving the sauna, lock the sauna building doors, leave the key in the box where you found it, lock the box.'
     ],
-    'liability.note': 'Visitors are liable for material damage according to the laws of the Republic of Lithuania. Damages to owners are compensated before departure.'
+    'liability.note': 'Visitors are liable for material damage according to the laws of the Republic of Lithuania. Damages to owners are compensated before departure.',
+    'enter.coupon': 'Enter coupon code',
+    'apply.coupon': 'Apply',
+    'coupon.invalid': 'Invalid or expired coupon code',
+    'coupon.applied': 'Discount applied!',
+    'discount': 'Discount',
+    'please.enter.coupon': 'Please enter a coupon code'
   },
   lt: {
     'back.to.apartments': 'Grįžti į visus apartamentus',
@@ -259,7 +265,13 @@ const translations = {
       'Išeinant iš pirties, išjungti visur apšvietimą.',
       'Išeinant iš pirties, užrakinti pirties pastato duris, raktą palikti dėžutėje, kur jį ir radote, dėžutę užrakinti.'
     ],
-    'liability.note': 'Už padarytą materialinę žalą lankytojai atsako LR įstatymų numatyta tvarka. Šeimininkams nuostoliai padengiami prieš išvykstant.'
+    'liability.note': 'Už padarytą materialinę žalą lankytojai atsako LR įstatymų numatyta tvarka. Šeimininkams nuostoliai padengiami prieš išvykstant.',
+    'enter.coupon': 'Įveskite nuolaidos kodą',
+    'apply.coupon': 'Pritaikyti',
+    'coupon.invalid': 'Neteisingas arba pasibaigęs nuolaidos kodas',
+    'coupon.applied': 'Nuolaida pritaikyta!',
+    'discount': 'Nuolaida',
+    'please.enter.coupon': 'Prašome įvesti nuolaidos kodą'
   }
 };
 

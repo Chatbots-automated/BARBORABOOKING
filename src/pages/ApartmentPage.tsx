@@ -26,9 +26,8 @@ export function ApartmentPage() {
   const [emailError, setEmailError] = useState(false);
   const [fullNameError, setFullNameError] = useState(false);
   const [phoneNumberError, setPhoneNumberError] = useState(false);
-  const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount_percent: number } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount_percent: number } | null>(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -142,6 +141,28 @@ export function ApartmentPage() {
     return isValid;
   };
 
+  const calculateTotalPrice = () => {
+    if (!checkIn || !checkOut || !apartment) return 0;
+
+    const numberOfNights = differenceInDays(checkOut, checkIn);
+    let total = numberOfNights * apartment.price_per_night;
+
+    if (hasPets) {
+      total += 10;
+    }
+
+    if (apartment.id === '0dd964df-1b77-4bb2-9e22-6ebf5fe2b9f4' && extraBed) {
+      total += 15;
+    }
+
+    if (appliedCoupon) {
+      const discount = total * (appliedCoupon.discount_percent / 100);
+      total -= discount;
+    }
+
+    return total;
+  };
+
   const handleBooking = async () => {
     if (!validateInputs()) {
       return;
@@ -150,17 +171,7 @@ export function ApartmentPage() {
     if (!apartment || !checkIn || !checkOut) return;
 
     const numberOfNights = differenceInDays(checkOut, checkIn);
-    let totalPrice = numberOfNights * apartment.price_per_night;
-    
-    // Add pet fee if applicable
-    if (hasPets) {
-      totalPrice += 10;
-    }
-    
-    // Add extra bed fee if applicable for Pikulas apartment
-    if (apartment.id === '0dd964df-1b77-4bb2-9e22-6ebf5fe2b9f4' && extraBed) {
-      totalPrice += 15;
-    }
+    const totalPrice = calculateTotalPrice();
 
     const params = new URLSearchParams({
       mode: 'payment',
@@ -207,21 +218,8 @@ export function ApartmentPage() {
     }
   };
 
-  const calculateTotalPrice = () => {
-    if (!checkIn || !checkOut || !apartment) return 0;
-
-    const numberOfNights = differenceInDays(checkOut, checkIn);
-    let total = numberOfNights * apartment.price_per_night;
-
-    if (hasPets) {
-      total += 10;
-    }
-
-    if (apartment.id === '0dd964df-1b77-4bb2-9e22-6ebf5fe2b9f4' && extraBed) {
-      total += 15;
-    }
-
-    return total;
+  const handleCouponApply = (coupon: { code: string; discount_percent: number } | null) => {
+    setAppliedCoupon(coupon);
   };
 
   if (isLoading) {
@@ -303,6 +301,7 @@ export function ApartmentPage() {
                 checkIn={checkIn}
                 checkOut={checkOut}
                 onDateSelect={handleDateSelect}
+                onCouponApply={handleCouponApply}
               />
 
               <div className="space-y-4">
@@ -436,6 +435,12 @@ export function ApartmentPage() {
                       <div className="flex justify-between">
                         <span className="text-gray-600">{t('extra.bed.charge')}</span>
                         <span>€15</span>
+                      </div>
+                    )}
+                    {appliedCoupon && (
+                      <div className="flex justify-between text-green-600">
+                        <span>Discount ({appliedCoupon.discount_percent}%)</span>
+                        <span>-€{((totalPrice / (1 - appliedCoupon.discount_percent / 100)) * (appliedCoupon.discount_percent / 100)).toFixed(2)}</span>
                       </div>
                     )}
                     <div className="flex justify-between font-bold pt-2 border-t border-gray-200">
