@@ -57,20 +57,22 @@ export function ApartmentPage() {
         
         setApartment(data);
 
-        const { data: bookings } = await supabase
-          .from('bookings')
-          .select('check_in, check_out')
-          .eq('apartment_name', getApartmentBaseName(data.name));
+        if (data.is_available) {
+          const { data: bookings } = await supabase
+            .from('bookings')
+            .select('check_in, check_out')
+            .eq('apartment_name', getApartmentBaseName(data.name));
 
-        const allDates: Date[] = [];
-        bookings?.forEach(booking => {
-          const start = parseISO(booking.check_in);
-          const end = parseISO(booking.check_out);
-          const daysInRange = eachDayOfInterval({ start, end: subDays(end, 1) });
-          allDates.push(...daysInRange);
-        });
+          const allDates: Date[] = [];
+          bookings?.forEach(booking => {
+            const start = parseISO(booking.check_in);
+            const end = parseISO(booking.check_out);
+            const daysInRange = eachDayOfInterval({ start, end: subDays(end, 1) });
+            allDates.push(...daysInRange);
+          });
 
-        setBookedDates(allDates);
+          setBookedDates(allDates);
+        }
       } catch (err) {
         console.error('Error fetching apartment:', err);
         setError('Failed to load apartment details');
@@ -247,6 +249,25 @@ export function ApartmentPage() {
           <button
             onClick={() => navigate('/')}
             className="mt-6 px-6 py-2 bg-[#807730] text-white rounded hover:bg-[#6a632a] transition-colors"
+          >
+            {t('back.to.apartments')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!apartment.is_available) {
+    return (
+      <div className="pt-24 min-h-screen bg-[#F5F2EA] flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-md text-center max-w-lg mx-4">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">{apartment.name}</h2>
+          <p className="text-gray-600 mb-6">
+            Apartamentas šiuo metu nerezervuojamas. Pasirinktas apartamentas šiuo metu nėra prieinamas rezervacijoms.
+          </p>
+          <button
+            onClick={() => navigate('/')}
+            className="px-6 py-3 bg-[#807730] text-white rounded-lg hover:bg-[#6a632a] transition-colors"
           >
             {t('back.to.apartments')}
           </button>

@@ -22,7 +22,8 @@ export function HomePage() {
       try {
         const { data, error } = await supabase
           .from('apartments')
-          .select('id, name, description, price_per_night, image_url');
+          .select('id, name, description, price_per_night, image_url, is_available')
+          .eq('is_available', true); // Only fetch available apartments
 
         if (error) throw error;
         setApartments(data);

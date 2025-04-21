@@ -4,6 +4,7 @@ export interface Apartment {
   description: string | null;
   price_per_night: number;
   image_url: string | null;
+  is_available: boolean;
 }
 
 export interface BookingDetails {
