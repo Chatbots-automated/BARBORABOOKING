@@ -15,7 +15,7 @@ export function ApartmentPage() {
   const [bookedDates, setBookedDates] = useState<Date[]>([]);
   const [checkIn, setCheckIn] = useState<Date | null>(null);
   const [checkOut, setCheckOut] = useState<Date | null>(null);
-  const [numberOfGuests, setNumberOfGuests] = useState(2);
+  const [numberOfGuests, setNumberOfGuests] = useState<number | null>(null);
   const [hasPets, setHasPets] = useState(false);
   const [extraBed, setExtraBed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -199,7 +199,7 @@ export function ApartmentPage() {
       'metadata[guest_name]': fullName,
       'metadata[guest_email]': email,
       'metadata[guest_phone]': phoneNumber,
-      'metadata[number_of_guests]': numberOfGuests.toString(),
+      'metadata[number_of_guests]': numberOfGuests?.toString() || '',
     });
 
     try {
@@ -405,8 +405,9 @@ export function ApartmentPage() {
                       type="number"
                       min="1"
                       max="12"
-                      value={numberOfGuests}
+                      value={numberOfGuests ?? ''}
                       onChange={(e) => setNumberOfGuests(parseInt(e.target.value))}
+                      placeholder="Įveskite svečių skaičių"
                       className="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                   </div>
